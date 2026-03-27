@@ -35,8 +35,8 @@ warmup_steps = 300
 
 grid = OrderedDict({
     'nums_pos_tags': [[8], [16], [32], [64]],
-    'insert_after': [[1], [2], [3], [1, 2]],
-    'expand_and_contract': [True, False],
+    'insert_after': [[1]],
+    'expand_and_contract': [True],
     'pos_activation': [nn.ReLU()]
 })
 
