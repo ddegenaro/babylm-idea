@@ -17,8 +17,6 @@ from transformers import (
 from data import get_data, TextDataCollator
 from embed_pos_gpt import EmbedPOSGPT2LMHeadModel
 
-embed = False # use experimental technique
-
 seed = 444
 train_rows = 10_000 # -1 means all rows
 eval_rows = 10_000
@@ -33,9 +31,11 @@ lr = 5e-4
 wd = 1e-2
 warmup_steps = 300
 
+embed = True # use experimental technique
+
 if embed:
     grid = OrderedDict({
-        'nums_pos_tags': [[8], [16], [32], [64]],
+        'nums_pos_tags': [[2], [4], [8], [16], [32], [64]],
         'insert_after': [[1]],
         'expand_and_contract': [True],
         'pos_activation': [nn.ReLU()]
