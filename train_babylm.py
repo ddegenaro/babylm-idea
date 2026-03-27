@@ -16,6 +16,7 @@ from transformers import (
 
 from data import get_data, TextDataCollator
 from embed_pos_gpt import EmbedPOSGPT2LMHeadModel
+from utils import TsvLossCallback
 
 seed = 444
 train_rows = 10_000 # -1 means all rows
@@ -138,23 +139,24 @@ for experiment_setup in product(*grid.values()):
         experiment_num = '1'
     CHECKPOINT_DIR = f'experiments/{experiment_num}'
     os.makedirs(CHECKPOINT_DIR)
+    
+    os.environ["TENSORBOARD_LOGGING_DIR"] = f"{CHECKPOINT_DIR}/logs"
 
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=num_train_epochs,
         per_device_train_batch_size=8,
         gradient_accumulation_steps=8,
-        save_steps=2000,
-        save_total_limit=3,
+        save_steps=1000,
+        save_total_limit=1,
         eval_strategy="steps" if eval_dataset is not None else "no",
         eval_steps=1000,
-        logging_steps=500,
+        logging_steps=100,
         learning_rate=lr,
         weight_decay=wd,
         warmup_steps=warmup_steps,
-        fp16=False,
+        fp16=True,
         report_to=["tensorboard"],
-        logging_dir=f"{CHECKPOINT_DIR}/logs",
         remove_unused_columns=False,
     )
     
@@ -183,6 +185,7 @@ for experiment_setup in product(*grid.values()):
         train_dataset = train_dataset,
         eval_dataset = eval_dataset,
         data_collator = data_collator,
+        callbacks=[TsvLossCallback(f"{CHECKPOINT_DIR}/loss_log.tsv")],
     )
     
     print(f'Training {type(model)} on device {DEVICE}:')
