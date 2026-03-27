@@ -9,7 +9,6 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 from transformers.masking_utils import create_causal_mask
 from transformers.modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa
 from transformers.utils import logging
-from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 
 logger = logging.get_logger(__name__)
 

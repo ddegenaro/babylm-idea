@@ -23,10 +23,10 @@ seed = 444
 train_rows = -1 # -1 means all rows
 eval_rows = 10_000
  
-MAX_LENGTH = 64
-n_embd = 384
-n_layer = 4
-n_head = 4
+MAX_LENGTH = 1024
+n_embd = 256
+n_layer = 12
+n_head = 8
 
 num_train_epochs = 5
 lr = 5e-4
@@ -61,6 +61,7 @@ tokenizer.pad_token = tokenizer.eos_token
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False,
+    seed=seed
 )
 
 config = GPT2Config(
