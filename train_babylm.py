@@ -17,7 +17,7 @@ from transformers import (
 from data import get_data, TextDataCollator
 from embed_pos_gpt import EmbedPOSGPT2LMHeadModel
 
-embed = True # use experimental technique
+embed = False # use experimental technique
 
 seed = 444
 train_rows = 10_000 # -1 means all rows
@@ -33,12 +33,20 @@ lr = 5e-4
 wd = 1e-2
 warmup_steps = 300
 
-grid = OrderedDict({
-    'nums_pos_tags': [[8], [16], [32], [64]],
-    'insert_after': [[1]],
-    'expand_and_contract': [True],
-    'pos_activation': [nn.ReLU()]
-})
+if embed:
+    grid = OrderedDict({
+        'nums_pos_tags': [[8], [16], [32], [64]],
+        'insert_after': [[1]],
+        'expand_and_contract': [True],
+        'pos_activation': [nn.ReLU()]
+    })
+else:
+    grid = OrderedDict({
+        'nums_pos_tags': [None],
+        'insert_after': [None],
+        'expand_and_contract': [None],
+        'pos_activation': [None]
+    })
 
 DEVICE = 'cpu'
 if torch.cuda.is_available():
@@ -107,7 +115,7 @@ for experiment_setup in product(*grid.values()):
         'wd': wd,
         'warmup_steps': warmup_steps,
         'embed': embed,
-        'pos_activation': repr(pos_activation)
+        'pos_activation': repr(pos_activation) if pos_activation is not None else None
     }
     
     if not embed:
