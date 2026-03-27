@@ -1,5 +1,4 @@
 import os
-import torch
 import random
 import json
 import glob
@@ -7,14 +6,16 @@ from collections import OrderedDict
 from itertools import product
 
 import numpy as np
+import torch
+from torch import nn
 from transformers import (
-    GPT2TokenizerFast,
     GPT2Config, GPT2LMHeadModel,
-    Trainer, TrainingArguments
+    Trainer, TrainingArguments,
+    GPT2Tokenizer
 )
 
 from data import get_data, TextDataCollator
-from embed_pos_gpt import EmbedPOSGPTLMHead
+from embed_pos_gpt import EmbedPOSGPT2LMHeadModel
 
 embed = True # use experimental technique
 
@@ -35,7 +36,8 @@ warmup_steps = 300
 grid = OrderedDict({
     'nums_pos_tags': [[8], [16], [32], [64]],
     'insert_after': [[1], [2], [3], [1, 2]],
-    'expand_and_contract': [True, False]
+    'expand_and_contract': [True, False],
+    'pos_activation': [nn.ReLU()]
 })
 
 DEVICE = 'cpu'
@@ -54,7 +56,7 @@ torch.backends.cudnn.deterministic = True
 
 os.makedirs('experiments', exist_ok=True)
 
-tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token
 data_collator = TextDataCollator(tokenizer, max_length=MAX_LENGTH)
 
@@ -78,14 +80,16 @@ train_dataset, eval_dataset = get_data(
 print('Done.')
 
 print('Searching finished experiments...')
-existing_hparams = [json.load(open(f)) for f in glob.glob('experiments/*/hparams.json')]
+existing_hparams = [
+    json.load(open(f)) for f in glob.glob('experiments/*/hparams.json')
+]
 for existing_hparam in existing_hparams:
     del existing_hparam['param_count']
 print('Done.')
 
 for experiment_setup in product(*grid.values()):
     
-    nums_pos_tags, insert_after, expand_and_contract = experiment_setup
+    nums_pos_tags, insert_after, expand_and_contract, pos_activation = experiment_setup
     
     hparams = {
         'nums_pos_tags': nums_pos_tags,
@@ -102,7 +106,8 @@ for experiment_setup in product(*grid.values()):
         'lr': lr,
         'wd': wd,
         'warmup_steps': warmup_steps,
-        'embed': embed
+        'embed': embed,
+        'pos_activation': repr(pos_activation)
     }
     
     if not embed:
@@ -142,11 +147,17 @@ for experiment_setup in product(*grid.values()):
         fp16=False,
         report_to=["tensorboard"],
         logging_dir=f"{CHECKPOINT_DIR}/logs",
-        remove_unused_columns=False
+        remove_unused_columns=False,
     )
     
     if embed:
-        model = EmbedPOSGPTLMHead(config, nums_pos_tags, insert_after, expand_and_contract)
+        model = EmbedPOSGPT2LMHeadModel(
+            config,
+            nums_pos_tags,
+            insert_after,
+            expand_and_contract,
+            pos_activation
+        )
     else:
         model = GPT2LMHeadModel(config)
     model.resize_token_embeddings(len(tokenizer))
