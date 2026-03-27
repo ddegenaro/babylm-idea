@@ -286,7 +286,6 @@ class EmbedPOSGPT(GPT2Model):
         )
         
 class EmbedPOSGPTLMHead(GPT2LMHeadModel):
-    _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(
         self,
