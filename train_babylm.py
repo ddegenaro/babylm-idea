@@ -10,11 +10,10 @@ import numpy as np
 from transformers import (
     GPT2TokenizerFast,
     GPT2Config, GPT2LMHeadModel,
-    Trainer, TrainingArguments,
-    DataCollatorForLanguageModeling
+    Trainer, TrainingArguments
 )
 
-from data import get_data
+from data import get_data, TextDataCollator
 from embed_pos_gpt import EmbedPOSGPTLMHead
 
 embed = True # use experimental technique
@@ -57,12 +56,7 @@ os.makedirs('experiments', exist_ok=True)
 
 tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token
-
-data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer,
-    mlm=False,
-    seed=seed
-)
+data_collator = TextDataCollator(tokenizer, max_length=MAX_LENGTH)
 
 config = GPT2Config(
     vocab_size=len(tokenizer),
@@ -139,7 +133,7 @@ for experiment_setup in product(*grid.values()):
         gradient_accumulation_steps=8,
         save_steps=2000,
         save_total_limit=3,
-        eval_strategy="steps",
+        eval_strategy="steps" if eval_dataset is not None else "no",
         eval_steps=1000,
         logging_steps=500,
         learning_rate=lr,
@@ -148,7 +142,7 @@ for experiment_setup in product(*grid.values()):
         fp16=False,
         report_to=["tensorboard"],
         logging_dir=f"{CHECKPOINT_DIR}/logs",
-        use_mps_device=(DEVICE == 'mps')
+        remove_unused_columns=False
     )
     
     if embed:
