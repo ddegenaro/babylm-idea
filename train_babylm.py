@@ -23,9 +23,9 @@ train_rows = -1 # -1 means all rows
 eval_rows = 10_000
  
 MAX_LENGTH = 1024
-n_embd = 256
+n_embd = 128
 n_layer = 12
-n_head = 8
+n_head = 4
 
 num_train_epochs = 5
 lr = 5e-4
