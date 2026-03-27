@@ -2,7 +2,7 @@ from torch import nn
 
 from transformers import GPT2Config, AutoTokenizer, GPT2Model
 
-from embed_pos_gpt import EmbedPOSGPT
+from embed_pos_gpt import EmbedPOSGPT2LMHeadModel
 
 num_pos_tags = 16 # list of pos tag set sizes for each layer
 insert_after = -1 # list of zero-indexed layers, a single layer index, or -1 for all layers
@@ -21,7 +21,7 @@ prompt = ['hello world, how are you?']
 tokenizer = AutoTokenizer.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
 model = GPT2Model(config)
-custom_model = EmbedPOSGPT(
+custom_model = EmbedPOSGPT2LMHeadModel(
     config,
     nums_pos_tags=num_pos_tags,
     insert_after=insert_after,
@@ -52,14 +52,14 @@ print(custom_model(**inputs))
 print('\n')
 
 print('args:')
-print('nums_pos_tags:', custom_model.nums_pos_tags)
-print('insert_after:', custom_model.insert_after)
+print('nums_pos_tags:', custom_model.transformer.nums_pos_tags)
+print('insert_after:', custom_model.transformer.insert_after)
 print('\n')
 
 print('params:')
 if expand_and_contract:
-    print('pos_selectors_bot:', custom_model.pos_selectors_bot)
-    print('pos_selectors_top:', custom_model.pos_selectors_top)
+    print('pos_selectors_bot:', custom_model.transformer.pos_selectors_bot)
+    print('pos_selectors_top:', custom_model.transformer.pos_selectors_top)
 else:
-    print('pos_selectors:', custom_model.pos_selectors)
-print('wpose:', custom_model.wpose)
+    print('pos_selectors:', custom_model.transformer.pos_selectors)
+print('wpose:', custom_model.transformer.wpose)
