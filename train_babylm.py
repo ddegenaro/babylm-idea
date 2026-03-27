@@ -19,7 +19,7 @@ from embed_pos_gpt import EmbedPOSGPTLMHead
 embed = True # use experimental technique
 
 seed = 444
-train_rows = -1 # -1 means all rows
+train_rows = 10_000 # -1 means all rows
 eval_rows = 10_000
  
 MAX_LENGTH = 1024
