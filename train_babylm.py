@@ -2,6 +2,7 @@ import os
 import torch
 import random
 import json
+import glob
 from collections import OrderedDict
 from itertools import product
 
@@ -16,10 +17,10 @@ from transformers import (
 from data import get_data
 from embed_pos_gpt import EmbedPOSGPTLMHead
 
-embed = True
+embed = True # use experimental technique
 
 seed = 444
-train_rows = -1
+train_rows = -1 # -1 means all rows
 eval_rows = 10_000
  
 MAX_LENGTH = 64
@@ -38,11 +39,12 @@ grid = OrderedDict({
     'expand_and_contract': [True, False]
 })
 
-device = 'cpu'
+DEVICE = 'cpu'
 if torch.cuda.is_available():
-    device = 'cuda'
+    DEVICE = 'cuda'
 elif torch.mps.is_available():
-    device = 'mps'
+    DEVICE = 'mps'
+print(f'Using device: {DEVICE}')
 
 random.seed(seed)
 torch.manual_seed(seed)
@@ -56,7 +58,6 @@ os.makedirs('experiments', exist_ok=True)
 tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token
 
-# Data collator
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False,
@@ -73,56 +74,63 @@ config = GPT2Config(
     eos_token_id = tokenizer.eos_token_id
 )
 
+print('Loading data...')
 train_dataset, eval_dataset = get_data(
     train_rows = train_rows,
     eval_rows = eval_rows,
     seed = seed
 )
+print('Done.')
+
+print('Searching finished experiments...')
+existing_hparams = [json.load(open(f)) for f in glob.glob('experiments/*/hparams.json')]
+for existing_hparam in existing_hparams:
+    del existing_hparam['param_count']
+print('Done.')
 
 for experiment_setup in product(*grid.values()):
     
     nums_pos_tags, insert_after, expand_and_contract = experiment_setup
     
+    hparams = {
+        'nums_pos_tags': nums_pos_tags,
+        'insert_after': insert_after,
+        'expand_and_contract': expand_and_contract,
+        'train_rows': train_rows,
+        'eval_rows': eval_rows,
+        'seed': seed,
+        'max_length': MAX_LENGTH,
+        'n_embd': n_embd,
+        'n_layer': n_layer,
+        'n_head': n_head,
+        'num_train_epochs': num_train_epochs,
+        'lr': lr,
+        'wd': wd,
+        'warmup_steps': warmup_steps,
+        'embed': embed
+    }
+    
+    if not embed:
+        hparams['nums_pos_tags'] = None
+        hparams['insert_after'] = None
+        hparams['expand_and_contract'] = None
+    
+    if hparams in existing_hparams:
+        print(f'Skipping: {experiment_setup}, already found.')
+        continue
+    
     try:
-        experiment_num = str(max([int(i) for i in os.listdir('experiments')]) + 1)
+        exps = os.listdir('experiments')
+        try:
+            exps.remove('.DS_Store')
+        except:
+            pass
+        experiment_num = str(max([int(i) for i in exps]) + 1)
     except:
         experiment_num = '1'
-    
     CHECKPOINT_DIR = f'experiments/{experiment_num}'
-    
     os.makedirs(CHECKPOINT_DIR)
-    
-    json.dump(
-        {
-            'nums_pos_tags': nums_pos_tags,
-            'insert_after': insert_after,
-            'expand_and_contract': expand_and_contract,
-            'train_rows': train_rows,
-            'eval_rows': eval_rows,
-            'seed': seed,
-            'max_length': MAX_LENGTH,
-            'n_embd': n_embd,
-            'n_layer': n_layer,
-            'n_head': n_head,
-            'num_train_epochs': num_train_epochs,
-            'lr': lr,
-            'wd': wd,
-            'warmup_steps': warmup_steps,
-            'embed': embed
-        },
-        open(os.path.join(CHECKPOINT_DIR, 'hparams.json'), 'w+'),
-        indent=4
-    )
 
-    if embed:
-        model = EmbedPOSGPTLMHead(config, nums_pos_tags, insert_after, expand_and_contract)
-    else:
-        model = GPT2LMHeadModel(config)
-    model.resize_token_embeddings(len(tokenizer))
-    
-    # breakpoint()
-
-    # The training args
     training_args = TrainingArguments(
         output_dir=CHECKPOINT_DIR,
         num_train_epochs=num_train_epochs,
@@ -139,9 +147,22 @@ for experiment_setup in product(*grid.values()):
         fp16=False,
         report_to=["tensorboard"],
         logging_dir=f"{CHECKPOINT_DIR}/logs",
+        use_mps_device=(DEVICE == 'mps')
+    )
+    
+    if embed:
+        model = EmbedPOSGPTLMHead(config, nums_pos_tags, insert_after, expand_and_contract)
+    else:
+        model = GPT2LMHeadModel(config)
+    model.resize_token_embeddings(len(tokenizer))
+    
+    hparams['param_count'] = sum(p.numel() for p in model.parameters())
+    json.dump(
+        hparams,
+        open(os.path.join(CHECKPOINT_DIR, 'hparams.json'), 'w+'),
+        indent=4
     )
 
-    # Initialize the trainer
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -149,5 +170,12 @@ for experiment_setup in product(*grid.values()):
         eval_dataset = eval_dataset,
         data_collator = data_collator,
     )
+    
+    print(f'Training {type(model)} on device {DEVICE}:')
+    for key, val in hparams.items():
+        if type(val) == int:
+            print(f'\t{key}: {val:,}')
+        else:
+            print(f'\t{key}: {val}')
 
     trainer.train()
