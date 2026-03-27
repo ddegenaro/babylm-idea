@@ -26,16 +26,13 @@ class EmbedPOSGPT(GPT2Model):
     ):
         super().__init__(config)
         
-        # ADDITIONAL
         self.expand_and_contract = expand_and_contract
         self.pos_activation = pos_activation
         
-        # ADDITIONAL
         if type(nums_pos_tags) == int:
             nums_pos_tags = [nums_pos_tags]
         self.nums_pos_tags = nums_pos_tags
         
-        # ADDITIONAL
         if type(insert_after) == int:
             insert_after = [insert_after]
         self.insert_after = insert_after
@@ -51,7 +48,6 @@ class EmbedPOSGPT(GPT2Model):
         for i in self.insert_after:
             assert i < config.num_hidden_layers, f"Each layer specified in insert_after must exist. Layer {i} does not exist with {config.num_hidden_layers} hidden layers."
         
-        # ADDITIONAL
         if expand_and_contract:
             
             self.pos_selectors_bot = nn.ModuleDict({
@@ -69,7 +65,6 @@ class EmbedPOSGPT(GPT2Model):
                 for i in range(len(self.insert_after))
             })
         
-        # ADDITIONAL
         self.wpose = nn.ModuleDict({
             str(self.insert_after[i]): nn.Embedding(self.nums_pos_tags[i], self.embed_dim)
             for i in range(len(self.insert_after))
